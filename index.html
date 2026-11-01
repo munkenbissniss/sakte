@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sakte">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Sakte – AI slow motion</title>
+<style>
+:root{
+  --bg:#0d0f14; --panel:#161a22; --line:#262c38; --text:#e9edf4; --dim:#8b94a6;
+  --accent:#7cc4ff; --accent2:#b59cff; --ok:#6fdc9a; --warn:#ffb86b; --err:#ff7b7b;
+  --r:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+main{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;align-items:baseline;gap:10px;margin:4px 0 18px}
+h1{font-size:28px;margin:0;letter-spacing:-.02em;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+header span{color:var(--dim)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
+  min-height:200px;border:2px dashed var(--line);border-radius:var(--r);cursor:pointer;transition:.15s;padding:20px}
+.drop:hover,.drop.over{border-color:var(--accent);background:#7cc4ff0d}
+.drop svg{opacity:.8}
+.drop b{font-size:17px}
+.drop small{color:var(--dim)}
+input[type=file]{display:none}
+video,canvas.preview{width:100%;border-radius:12px;background:#000;display:block;max-height:60vh;object-fit:contain}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--dim);font-size:13px;margin-top:10px}
+.meta b{color:var(--text);font-weight:600}
+label.lbl{display:block;font-size:13px;color:var(--dim);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+.seg{display:flex;background:#0f1218;border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;color:var(--dim);padding:10px 6px;border-radius:9px;font:inherit;font-weight:600;cursor:pointer}
+.seg button.on{background:#232a37;color:var(--text);box-shadow:0 0 0 1px #3a4458 inset}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+.hint{color:var(--dim);font-size:13px;margin-top:6px}
+.trim{position:relative;height:36px;margin-top:4px}
+.trim input[type=range]{position:absolute;inset:0;width:100%;pointer-events:none;-webkit-appearance:none;appearance:none;background:transparent;margin:0;height:36px}
+.trim input[type=range]::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:22px;height:30px;border-radius:7px;background:var(--text);border:3px solid var(--accent);cursor:grab}
+.trim input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:26px;border-radius:7px;background:var(--text);border:3px solid var(--accent);cursor:grab}
+.track{position:absolute;left:0;right:0;top:14px;height:8px;border-radius:4px;background:#232a37}
+.track i{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px}
+.row{display:flex;justify-content:space-between;color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums}
+.toggle{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:12px}
+.toggle span small{display:block;color:var(--dim);font-size:12.5px}
+.sw{position:relative;width:46px;height:28px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw i{position:absolute;inset:0;background:#2a3140;border-radius:20px;transition:.15s;cursor:pointer}
+.sw i:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+i{background:var(--accent)}
+.sw input:checked+i:before{transform:translateX(18px)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:14px;padding:15px;
+  font:inherit;font-size:16px;font-weight:700;cursor:pointer;color:#0b0d12;
+  background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:#232a37;color:var(--text)}
+.btns{display:flex;gap:10px;margin-top:12px}
+.btns .btn{flex:1}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.summary div{background:#0f1218;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.summary b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.summary small{color:var(--dim);font-size:12px}
+.bar{height:10px;border-radius:6px;background:#232a37;overflow:hidden;margin:14px 0 8px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+.status{font-variant-numeric:tabular-nums;color:var(--dim);font-size:13.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.msg{border-radius:12px;padding:12px 14px;margin-top:12px;font-size:14px}
+.msg.warn{background:#ffb86b14;border:1px solid #ffb86b55;color:#ffd7ad}
+.msg.err{background:#ff7b7b14;border:1px solid #ff7b7b55;color:#ffc2c2}
+.msg.ok{background:#6fdc9a14;border:1px solid #6fdc9a55;color:#c4f3d6}
+.foot{color:var(--dim);font-size:12.5px;text-align:center;margin-top:22px}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;background:#232a37;color:var(--text);font-size:12px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Sakte</h1><span>AI slow motion</span></header>
+
+  <!-- 1. Velg video -->
+  <section id="pick" class="card">
+    <label class="drop" id="drop">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="M17 10l5-3v10l-5-3"/></svg>
+      <b>Velg en video</b>
+      <small>eller dra den hit · korte klipp (2–10 s) fungerer best</small>
+      <input type="file" id="file" accept="video/*">
+    </label>
+  </section>
+
+  <!-- 2. Innstillinger -->
+  <section id="setup" class="hidden">
+    <div class="card">
+      <video id="src" playsinline muted controls preload="auto"></video>
+      <div class="meta" id="meta"></div>
+
+      <label class="lbl">Utsnitt</label>
+      <div class="trim">
+        <div class="track"><i id="trackfill"></i></div>
+        <input type="range" id="tStart" min="0" max="1000" value="0">
+        <input type="range" id="tEnd" min="0" max="1000" value="1000">
+      </div>
+      <div class="row"><span id="tStartL">0,00 s</span><span id="tLenL"></span><span id="tEndL"></span></div>
+    </div>
+
+    <div class="card">
+      <label class="lbl" style="margin-top:0">Effekt</label>
+      <div class="seg" id="mode">
+        <button data-v="slow" class="on">Slow motion</button>
+        <button data-v="smooth">Jevnere (høyere fps)</button>
+      </div>
+      <div class="hint" id="modeHint"></div>
+
+      <label class="lbl">Faktor</label>
+      <div class="seg" id="factor">
+        <button data-v="2" class="on">2×</button>
+        <button data-v="4">4×</button>
+        <button data-v="8">8×</button>
+      </div>
+
+      <label class="lbl">Oppløsning</label>
+      <div class="seg" id="res">
+        <button data-v="480">480p</button>
+        <button data-v="720" class="on">720p</button>
+        <button data-v="1080">1080p</button>
+        <button data-v="0">Original</button>
+      </div>
+
+      <div class="toggle">
+        <span>Oppdag klipp<small>Unngå «smelting» ved scenebytter</small></span>
+        <label class="sw"><input type="checkbox" id="scene" checked><i></i></label>
+      </div>
+
+      <div class="summary">
+        <div><b id="sFrames">–</b><small>nye bilder</small></div>
+        <div><b id="sDur">–</b><small>lengde ut</small></div>
+        <div><b id="sFps">–</b><small>fps ut</small></div>
+      </div>
+      <div id="setupMsg"></div>
+      <button class="btn" id="go">Lag slow motion</button>
+      <div class="btns"><button class="btn ghost" id="other">Velg annen video</button></div>
+    </div>
+  </section>
+
+  <!-- 3. Arbeid -->
+  <section id="work" class="card hidden">
+    <canvas class="preview" id="live"></canvas>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="status"><span id="stLeft">Starter …</span><span id="stRight"></span></div>
+    <div class="btns"><button class="btn ghost" id="cancel">Avbryt</button></div>
+  </section>
+
+  <!-- 4. Resultat -->
+  <section id="done" class="card hidden">
+    <video id="out" playsinline controls loop></video>
+    <div class="meta" id="outMeta"></div>
+    <div class="btns">
+      <button class="btn" id="save">Lagre video</button>
+      <button class="btn ghost hidden" id="share">Del …</button>
+    </div>
+    <div id="saveMsg"></div>
+    <div class="btns"><button class="btn ghost" id="again">Prøv andre innstillinger</button><button class="btn ghost" id="restart">Ny video</button></div>
+  </section>
+
+  <div id="globalMsg"></div>
+  <p class="foot">Alt skjer på enheten din – videoen lastes aldri opp.<br>
+    AI-modell: RIFE 4.6 (MIT) · Motor: <span class="pill" id="engine">ikke lastet</span></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.webgpu.min.js"></script>
+<script>
+"use strict";
+/* ======================================================================
+   Sakte – AI slow motion i nettleseren
+   Dekoding: <video> + seeking · AI: RIFE 4.6 via onnxruntime-web (WebGPU/WASM)
+   Koding: WebCodecs (H.264, ev. VP9) · Muxing: egen minimal MP4-skriver
+   ====================================================================== */
+const MODEL_URL = "rife46.wasm";
+const $ = id => document.getElementById(id);
+const S = { file:null, url:null, w:0, h:0, dur:0, fps:30, mode:"slow", factor:2, res:720,
+            start:0, end:0, cancel:false, blob:null, session:null, engine:null };
+
+/* ---------- små hjelpere ---------- */
+const fmtS = s => s.toLocaleString("no", {minimumFractionDigits:2, maximumFractionDigits:2}) + " s";
+const fmtT = s => { s = Math.max(0, Math.round(s)); return s < 60 ? s + " s" : Math.floor(s/60) + " min " + (s%60) + " s"; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function msg(el, kind, html){ $(el).innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : ""; }
+function show(id){ for (const s of ["pick","setup","work","done"]) $(s).classList.toggle("hidden", s !== id); window.scrollTo(0,0); }
+function seg(id, cb){
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    for (const x of $(id).children) x.classList.toggle("on", x === b);
+    cb(b.dataset.v);
+  });
+}
+
+/* ---------- 1. velg video ---------- */
+const drop = $("drop");
+$("file").addEventListener("change", e => e.target.files[0] && loadVideo(e.target.files[0]));
+["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) loadVideo(f); });
+
+async function loadVideo(file){
+  msg("globalMsg");
+  if (S.url) URL.revokeObjectURL(S.url);
+  S.file = file; S.url = URL.createObjectURL(file);
+  const v = $("src");
+  v.src = S.url;
+  try {
+    await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error("kan ikke lese")); });
+  } catch {
+    msg("globalMsg","err","Denne nettleseren klarer ikke å lese videoen. Prøv MP4 (H.264) eller en annen nettleser.");
+    return;
+  }
+  S.w = v.videoWidth; S.h = v.videoHeight; S.dur = v.duration;
+  S.start = 0; S.end = Math.min(S.dur, 10);
+  show("setup");
+  $("meta").innerHTML = `<span><b>${S.w}×${S.h}</b></span><span><b>${fmtS(S.dur)}</b></span><span id="fpsInfo">måler fps …</span>`;
+  initTrim();
+  S.fps = await detectFps(v);
+  $("fpsInfo").innerHTML = `<b>${+S.fps.toFixed(2)}</b> fps`;
+  if (S.fps >= 100) msg("setupMsg","warn",`Videoen er allerede ${Math.round(S.fps)} fps (slow-mo fra mobil?). Velg <b>Slow motion</b> for å strekke den enda mer.`);
+  updateSummary();
+}
+
+/* Mål bildefrekvens med requestVideoFrameCallback; fall tilbake til 30 */
+async function detectFps(v){
+  if (!("requestVideoFrameCallback" in HTMLVideoElement.prototype)) return 30;
+  const times = [];
+  let handle;
+  const done = new Promise(res => {
+    const cb = (now, md) => { times.push(md.mediaTime); if (times.length < 14) handle = v.requestVideoFrameCallback(cb); else res(); };
+    handle = v.requestVideoFrameCallback(cb);
+    setTimeout(res, 2500);
+  });
+  v.muted = true; v.currentTime = 0;
+  try { await v.play(); } catch { return 30; }
+  await done; v.pause(); v.currentTime = S.start;
+  const d = [];
+  for (let i = 1; i < times.length; i++) { const x = times[i] - times[i-1]; if (x > 0.001) d.push(x); }
+  if (d.length < 3) return 30;
+  d.sort((a,b) => a-b);
+  const fps = 1 / d[Math.floor(d.length * 0.25)];   // korteste typiske intervall (tapte bilder gir lengre)
+  const std = [23.976,24,25,29.97,30,48,50,59.94,60,90,100,119.88,120,240];
+  return std.reduce((a,b) => Math.abs(b-fps) < Math.abs(a-fps) ? b : a);
+}
+
+/* ---------- 2. innstillinger ---------- */
+function initTrim(){
+  const a = $("tStart"), b = $("tEnd");
+  a.value = 0; b.value = Math.round(S.end / S.dur * 1000);
+  const upd = (which) => {
+    let s = a.value / 1000 * S.dur, e = b.value / 1000 * S.dur;
+    if (e - s < 0.2) { if (which === "a") s = Math.max(0, e - 0.2); else e = Math.min(S.dur, s + 0.2); }
+    S.start = s; S.end = e;
+    a.value = s / S.dur * 1000; b.value = e / S.dur * 1000;
+    $("trackfill").style.left = (s / S.dur * 100) + "%";
+    $("trackfill").style.right = (100 - e / S.dur * 100) + "%";
+    $("tStartL").textContent = fmtS(s); $("tEndL").textContent = fmtS(e);
+    $("tLenL").textContent = "klipp: " + fmtS(e - s);
+    const v = $("src"); if (!v.seeking) v.currentTime = which === "b" ? e : s;
+    updateSummary();
+  };
+  a.oninput = () => upd("a"); b.oninput = () => upd("b");
+  upd("a");
+}
+seg("mode", v => { S.mode = v; updateSummary(); });
+seg("factor", v => { S.factor = +v; updateSummary(); });
+seg("res", v => { S.res = +v; updateSummary(); });
+
+function procSize(){
+  let w = S.w, h = S.h;
+  const short = Math.min(w, h);
+  if (S.res && short > S.res) { const k = S.res / short; w *= k; h *= k; }
+  return [Math.max(2, Math.round(w / 2) * 2), Math.max(2, Math.round(h / 2) * 2)];
+}
+function plan(){
+  const n = Math.max(2, Math.floor((S.end - S.start) * S.fps + 1e-6));
+  const total = (n - 1) * S.factor + 1;
+  const fpsOut = S.mode === "slow" ? S.fps : S.fps * S.factor;
+  return { n, total, fpsOut, durOut: total / fpsOut, newFrames: total - n };
+}
+function updateSummary(){
+  if (!S.dur) return;
+  const p = plan(), [w, h] = procSize();
+  $("sFrames").textContent = p.newFrames.toLocaleString("no");
+  $("sDur").textContent = fmtS(p.durOut).replace(",00","");
+  $("sFps").textContent = +p.fpsOut.toFixed(2);
+  $("modeHint").textContent = S.mode === "slow"
+    ? `Bevegelsen går ${S.factor}× saktere. Ingen lyd i slow motion.`
+    : `Samme hastighet, men ${S.factor}× flere bilder per sekund – svært jevn bevegelse. Lyd tas ikke med.`;
+  const mob = /iPhone|iPad|Android/i.test(navigator.userAgent);
+  const heavy = p.newFrames * w * h > (mob ? 1.2e8 : 4e8);
+  if (S.fps < 100) msg("setupMsg", heavy ? "warn" : "", heavy ?
+    `Dette blir ${p.newFrames.toLocaleString("no")} AI-bilder i ${w}×${h}. Det kan ta lang tid${mob ? " på mobil" : ""} – kort ned klippet eller velg lavere oppløsning for raskere resultat.` : "");
+}
+$("other").onclick = () => { $("file").value = ""; show("pick"); };
+
+/* ---------- AI-motor ---------- */
+async function getSession(){
+  if (S.session) return S.session;
+  if (typeof ort === "undefined") throw new Error("AI-motoren (onnxruntime-web) kunne ikke lastes. Sjekk nettforbindelsen.");
+  $("stLeft").textContent = "Pakker ut AI-modell …";
+  let buf;
+  const emb = document.getElementById("rifeModel");
+  if (emb && emb.textContent.length > 1000) {           // modellen er bygd inn i siden
+    const bin = atob(emb.textContent.trim());
+    const u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    buf = u.buffer;
+  } else {
+    let resp = null;
+    for (const url of [MODEL_URL, new URL(MODEL_URL, location.href).href]) {
+      try { resp = await fetch(url); if (resp.ok) break; } catch {}
+    }
+    if (!resp || !resp.ok) throw new Error("Fant ikke modellfilen " + MODEL_URL + (resp ? " (HTTP " + resp.status + ")" : ""));
+    buf = await resp.arrayBuffer();
+  }
+  ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
+  const opts = { graphOptimizationLevel: "all" };
+  const tries = [];
+  if (navigator.gpu) tries.push("webgpu");
+  tries.push("wasm");
+  let last;
+  for (const ep of tries) {
+    try {
+      $("stLeft").textContent = `Starter AI (${ep === "webgpu" ? "GPU" : "CPU"}) …`;
+      const s = await ort.InferenceSession.create(buf, { ...opts, executionProviders: [ep] });
+      S.session = s; S.engine = ep;
+      $("engine").textContent = ep === "webgpu" ? "WebGPU (GPU)" : "WASM (CPU)";
+      return s;
+    } catch (e) { last = e; console.warn("EP feilet", ep, e); }
+  }
+  throw last;
+}
+
+/* ---------- rammeuthenting via seeking ---------- */
+function seek(v, t){
+  return new Promise((res, rej) => {
+    const to = setTimeout(() => rej(new Error("seek timeout")), 8000);
+    const ok = () => {
+      clearTimeout(to);
+      if ("requestVideoFrameCallback" in v) { let done = false; v.requestVideoFrameCallback(() => { if (!done) { done = true; res(); } }); setTimeout(() => { if (!done) { done = true; res(); } }, 120); }
+      else res();
+    };
+    v.addEventListener("seeked", ok, { once: true });
+    v.currentTime = t;
+  });
+}
+
+/* ---------- MP4-muxer (én videospor, alt i én chunk) ---------- */
+function mp4(chunks, o){
+  const enc = s => new TextEncoder().encode(s);
+  const u8 = n => [n & 255], u16 = n => [(n >> 8) & 255, n & 255];
+  const u32 = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const i32 = n => u32(n >>> 0);
+  const cat = parts => { let len = 0; for (const p of parts) len += p.length; const out = new Uint8Array(len); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
+  const box = (type, ...parts) => { const body = cat(parts.map(p => p instanceof Uint8Array ? p : new Uint8Array(p))); return cat([new Uint8Array(u32(body.length + 8)), enc(type), body]); };
+  const full = (type, v, f, ...parts) => box(type, [v, (f >> 16) & 255, (f >> 8) & 255, f & 255], ...parts);
+  const matrix = [0x00010000,0,0,0,0x00010000,0,0,0,0x40000000].flatMap(u32);
+
+  const TS = 90000, d = Math.round(TS / o.fps), n = chunks.length, durMedia = n * d;
+  const durMovie = Math.round(durMedia / TS * 1000);
+  // presentasjonstid vs dekodetid (B-bilder) -> ctts + elst
+  const pts = chunks.map(c => Math.round(c.timestamp / 1e6 * TS));
+  const base = Math.min(...pts);
+  let shift = 0; for (let i = 0; i < n; i++) shift = Math.max(shift, i * d - (pts[i] - base));
+  const offs = pts.map((p, i) => p - base + shift - i * d);
+  const needCtts = offs.some(x => x !== offs[0]) || shift > 0;
+
+  let entry;
+  if (o.codec.startsWith("avc")) {
+    entry = box("avc1", [0,0,0,0,0,0], u16(1), u16(0), u16(0), new Array(12).fill(0), u16(o.w), u16(o.h),
+      u32(0x00480000), u32(0x00480000), u32(0), u16(1), new Array(32).fill(0), u16(0x18), u16(0xffff),
+      box("avcC", new Uint8Array(o.description)));
+  } else {
+    entry = box("vp09", [0,0,0,0,0,0], u16(1), u16(0), u16(0), new Array(12).fill(0), u16(o.w), u16(o.h),
+      u32(0x00480000), u32(0x00480000), u32(0), u16(1), new Array(32).fill(0), u16(0x18), u16(0xffff),
+      full("vpcC", 1, 0, u8(0), u8(31), u8((8 << 4) | (1 << 1) | 0), u8(1), u8(1), u8(1), u16(0)));
+  }
+  const keys = []; chunks.forEach((c, i) => c.type === "key" && keys.push(i + 1));
+  const stblParts = (mdatOff) => [
+    full("stsd", 0, 0, u32(1), entry),
+    full("stts", 0, 0, u32(1), u32(n), u32(d)),
+    ...(needCtts ? [full("ctts", 0, 0, u32(n), ...offs.flatMap(x => [...u32(1), ...u32(x)]))] : []),
+    full("stss", 0, 0, u32(keys.length), keys.flatMap(u32)),
+    full("stsc", 0, 0, u32(1), u32(1), u32(n), u32(1)),
+    full("stsz", 0, 0, u32(0), u32(n), chunks.flatMap(c => u32(c.data.length))),
+    full("stco", 0, 0, u32(1), u32(mdatOff)),
+  ];
+  const moov = (mdatOff) => box("moov",
+    full("mvhd", 0, 0, u32(0), u32(0), u32(1000), u32(durMovie), u32(0x00010000), u16(0x0100), new Array(10).fill(0), matrix, new Array(24).fill(0), u32(2)),
+    box("trak",
+      full("tkhd", 0, 3, u32(0), u32(0), u32(1), u32(0), u32(durMovie), new Array(8).fill(0), u16(0), u16(0), u16(0), u16(0), matrix, u32(o.w << 16), u32(o.h << 16)),
+      ...(shift > 0 ? [box("edts", full("elst", 0, 0, u32(1), u32(durMovie), i32(shift), u32(0x00010000)))] : []),
+      box("mdia",
+        full("mdhd", 0, 0, u32(0), u32(0), u32(TS), u32(durMedia), u16(0x55c4), u16(0)),
+        full("hdlr", 0, 0, u32(0), enc("vide"), new Array(12).fill(0), enc("Sakte\0")),
+        box("minf",
+          full("vmhd", 0, 1, new Array(8).fill(0)),
+          box("dinf", full("dref", 0, 0, u32(1), full("url ", 0, 1))),
+          box("stbl", ...stblParts(mdatOff))))));
+  const ftyp = box("ftyp", enc("isom"), u32(512), enc("isomiso2" + (o.codec.startsWith("avc") ? "avc1" : "vp09") + "mp41"));
+  const m0 = moov(0);
+  const mdatOff = ftyp.length + m0.length + 8;
+  const mv = moov(mdatOff);
+  let dataLen = 0; for (const c of chunks) dataLen += c.data.length;
+  return new Blob([ftyp, mv, new Uint8Array(u32(dataLen + 8)), enc("mdat"), ...chunks.map(c => c.data)], { type: "video/mp4" });
+}
+
+/* ---------- koder ---------- */
+async function makeEncoder(w, h, fps, sink){
+  if (typeof VideoEncoder === "undefined") throw new Error("Nettleseren mangler WebCodecs (videokoding). Bruk nyere Chrome, Edge, Safari (iOS 16.4+) eller Firefox 130+.");
+  const px = w * h;
+  const level = px > 2228224 ? "33" : px > 983040 ? "28" : "1f";
+  const bitrate = Math.max(2e6, Math.round(px * Math.min(fps, 60) * 0.15));
+  const cands = [
+    { codec: "avc1.6400" + level, avc: { format: "avc" } },
+    { codec: "avc1.4d00" + level, avc: { format: "avc" } },
+    { codec: "avc1.4200" + level, avc: { format: "avc" } },
+    { codec: "vp09.00.40.08" },
+  ];
+  for (const c of cands) {
+    const cfg = { ...c, width: w, height: h, bitrate, framerate: fps, latencyMode: "quality" };
+    try { const r = await VideoEncoder.isConfigSupported(cfg); if (!r.supported) continue; } catch { continue; }
+    const st = { codec: c.codec, chunks: [], description: null, error: null };
+    st.enc = new VideoEncoder({
+      output: (chunk, meta) => {
+        const data = new Uint8Array(chunk.byteLength); chunk.copyTo(data);
+        st.chunks.push({ data, timestamp: chunk.timestamp, type: chunk.type });
+        if (meta && meta.decoderConfig && meta.decoderConfig.description && !st.description)
+          st.description = new Uint8Array(ArrayBuffer.isView(meta.decoderConfig.description) ? meta.decoderConfig.description.buffer : meta.decoderConfig.description).slice();
+      },
+      error: e => { st.error = e; },
+    });
+    st.enc.configure(cfg);
+    return st;
+  }
+  throw new Error("Fant ingen støttet videokoder i denne nettleseren.");
+}
+
+/* ---------- hovedløp ---------- */
+$("go").onclick = run;
+$("cancel").onclick = () => { S.cancel = true; $("stLeft").textContent = "Avbryter …"; };
+$("again").onclick = () => show("setup");
+$("restart").onclick = () => { $("file").value = ""; show("pick"); };
+
+async function run(){
+  S.cancel = false;
+  show("work");
+  $("barfill").style.width = "0%"; $("stRight").textContent = "";
+  const v = $("src"); v.pause();
+  const [W, H] = procSize();
+  const p = plan();
+  const live = $("live"); live.width = W; live.height = H;
+  const lctx = live.getContext("2d");
+  const grab = new OffscreenCanvasOr(W, H);
+  const out = new OffscreenCanvasOr(W, H);
+  const thumbA = new Float32Array(64 * 36), thumbB = new Float32Array(64 * 36);
+  const small = new OffscreenCanvasOr(64, 36);
+  let enc;
+  try {
+    const session = await getSession();
+    enc = await makeEncoder(W, H, p.fpsOut, null);
+    const plane = W * H;
+    const input = new Float32Array(7 * plane);
+    const outImg = new ImageData(W, H);
+    let idx = 0;
+    const t0 = performance.now();
+    let aiCount = 0, aiTime = 0;
+
+    const fetchFrame = async (i, dstOffset, thumb) => {
+      await seek(v, Math.min(S.start + (i + 0.5) / S.fps, S.dur - 0.001));
+      grab.ctx.drawImage(v, 0, 0, W, H);
+      const d = grab.ctx.getImageData(0, 0, W, H).data;
+      for (let k = 0, j = 0; k < plane; k++, j += 4) {
+        input[dstOffset + k] = d[j] / 255;
+        input[dstOffset + plane + k] = d[j + 1] / 255;
+        input[dstOffset + 2 * plane + k] = d[j + 2] / 255;
+      }
+      small.ctx.drawImage(v, 0, 0, 64, 36);
+      const s = small.ctx.getImageData(0, 0, 64, 36).data;
+      for (let k = 0; k < thumb.length; k++) thumb[k] = (s[k*4] * .3 + s[k*4+1] * .59 + s[k*4+2] * .11) / 255;
+      return d;
+    };
+    const emitImage = async (img) => {   // img: ImageData
+      out.ctx.putImageData(img, 0, 0);
+      lctx.putImageData(img, 0, 0);
+      const vf = new VideoFrame(out.canvas, { timestamp: Math.round(idx * 1e6 / p.fpsOut), duration: Math.round(1e6 / p.fpsOut) });
+      enc.enc.encode(vf, { keyFrame: idx % Math.max(1, Math.round(p.fpsOut * 2)) === 0 });
+      vf.close();
+      idx++;
+      while (enc.enc.encodeQueueSize > 6) await sleep(5);
+      if (enc.error) throw enc.error;
+    };
+    const emitSource = async (rgba) => { outImg.data.set(rgba); await emitImage(outImg); };
+    const emitTensor = async (t) => {
+      const o = t.data, dims = t.dims, ow = dims[3], op = dims[2] * dims[3];
+      const od = outImg.data;
+      for (let y = 0, j = 0; y < H; y++) {
+        const row = y * ow;
+        for (let x = 0; x < W; x++, j += 4) {
+          const k = row + x;
+          od[j] = o[k] * 255; od[j+1] = o[op + k] * 255; od[j+2] = o[2*op + k] * 255; od[j+3] = 255;
+        }
+      }
+      await emitImage(outImg);
+    };
+
+    let prevRGBA = await fetchFrame(0, 0, thumbA);
+    prevRGBA = prevRGBA.slice();
+    for (let i = 0; i < p.n - 1; i++) {
+      if (S.cancel) throw new Error("avbrutt");
+      await emitSource(prevRGBA);
+      let nextRGBA = await fetchFrame(i + 1, 3 * plane, thumbB);
+      nextRGBA = nextRGBA.slice();
+      let diff = 0; for (let k = 0; k < thumbA.length; k++) diff += Math.abs(thumbA[k] - thumbB[k]);
+      diff /= thumbA.length;
+      const cut = $("scene").checked && diff > 0.14;
+      for (let k = 1; k < S.factor; k++) {
+        if (S.cancel) throw new Error("avbrutt");
+        const t = k / S.factor;
+        if (cut) { await emitSource(t < 0.5 ? prevRGBA : nextRGBA); continue; }
+        input.fill(t, 6 * plane);
+        const ta = performance.now();
+        const res = await session.run({ input: new ort.Tensor("float32", input, [1, 7, H, W]) });
+        aiTime += performance.now() - ta; aiCount++;
+        const outT = res.output || res[session.outputNames[0]];
+        await emitTensor(outT);
+        if (outT.dispose) outT.dispose();
+        progress(idx, p.total, t0, aiCount, aiTime);
+      }
+      // rull: B blir A
+      input.copyWithin(0, 3 * plane, 6 * plane);
+      thumbA.set(thumbB);
+      prevRGBA = nextRGBA;
+      progress(idx, p.total, t0, aiCount, aiTime);
+    }
+    await emitSource(prevRGBA);
+    $("stLeft").textContent = "Lager videofil …";
+    await enc.enc.flush();
+    enc.enc.close();
+    if (enc.error) throw enc.error;
+    const blob = mp4(enc.chunks, { w: W, h: H, fps: p.fpsOut, codec: enc.codec, description: enc.description });
+    finish(blob, W, H, p, performance.now() - t0);
+  } catch (e) {
+    try { enc && enc.enc.state !== "closed" && enc.enc.close(); } catch {}
+    if (e.message === "avbrutt") { show("setup"); return; }
+    console.error(e);
+    show("setup");
+    msg("setupMsg", "err", "Noe gikk galt: " + (e.message || e));
+  }
+}
+
+function progress(done, total, t0, aiCount, aiTime){
+  const el = (performance.now() - t0) / 1000;
+  const f = done / total;
+  $("barfill").style.width = (f * 100).toFixed(1) + "%";
+  const eta = f > 0.02 ? el / f - el : NaN;
+  $("stLeft").textContent = `Bilde ${done.toLocaleString("no")} av ${total.toLocaleString("no")}` + (isNaN(eta) ? "" : ` · ca. ${fmtT(eta)} igjen`);
+  $("stRight").textContent = aiCount ? `${(aiTime / aiCount / 1000).toFixed(2)} s per AI-bilde` : "";
+}
+
+function OffscreenCanvasOr(w, h){
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  this.canvas = c; this.ctx = c.getContext("2d", { willReadFrequently: true });
+}
+
+/* ---------- resultat ---------- */
+function finish(blob, W, H, p, ms){
+  S.blob = blob;
+  const o = $("out");
+  if (o.src) URL.revokeObjectURL(o.src);
+  o.src = URL.createObjectURL(blob);
+  show("done");
+  o.play().catch(() => {});
+  $("outMeta").innerHTML = `<span><b>${W}×${H}</b></span><span><b>${+p.fpsOut.toFixed(2)}</b> fps</span><span><b>${fmtS(p.durOut)}</b></span><span><b>${(blob.size / 1048576).toFixed(1)} MB</b></span><span>laget på ${fmtT(ms / 1000)}</span>`;
+  msg("saveMsg");
+  const f = fileOut();
+  $("share").classList.toggle("hidden", !(navigator.canShare && navigator.canShare({ files: [f] })));
+}
+function fileOut(){
+  const base = (S.file && S.file.name ? S.file.name.replace(/\.[^.]+$/, "") : "video");
+  return new File([S.blob], `${base}_sakte_${S.factor}x.mp4`, { type: "video/mp4" });
+}
+$("save").onclick = async () => {
+  const f = fileOut();
+  // 1) inne i Claude: downloads-kapabiliteten
+  if (window.claude && typeof window.claude.use === "function") {
+    try {
+      const dl = await window.claude.use("downloads");
+      if (dl) {
+        try { await dl.save({ filename: f.name, data: S.blob }); msg("saveMsg", "ok", "Lagret."); }
+        catch (e) { if (e && e.code !== "declined") msg("saveMsg", "err", "Kunne ikke lagre: " + (e.message || e.code)); }
+        return;
+      }
+    } catch {}
+  }
+  // 2) frittstående: vanlig nedlasting
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(f); a.download = f.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  if (/iPhone|iPad/i.test(navigator.userAgent) && navigator.canShare) msg("saveMsg", "ok", "Tips: bruk <b>Del … → Arkiver video</b> for å lagre rett i Bilder.");
+};
+$("share").onclick = async () => {
+  try { await navigator.share({ files: [fileOut()], title: "Slow motion" }); }
+  catch (e) { if (e.name !== "AbortError") msg("saveMsg", "err", "Deling feilet: " + e.message); }
+};
+
+/* ---------- PWA (bare når siden er hostet selv) ---------- */
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+if (typeof ort === "undefined") msg("globalMsg", "warn", "AI-motoren er ikke lastet ennå – sjekk nettforbindelsen hvis dette ikke forsvinner.");
+</script>
+</body>
+</html>
